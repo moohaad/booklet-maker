@@ -27,11 +27,11 @@ jobs:
           - os: macos-13
             target: x86_64-apple-darwin
             artifact_name: booklet-maker
-            asset_name: booklet-maker-macos-x86_64
+            asset_name: booklet-maker-macos-x86_64.dmg
           - os: macos-14
             target: aarch64-apple-darwin
             artifact_name: booklet-maker
-            asset_name: booklet-maker-macos-aarch64
+            asset_name: booklet-maker-macos-aarch64.dmg
 
     steps:
       - uses: actions/checkout@v4
@@ -80,8 +80,48 @@ jobs:
           mv Booklet_Maker-*.AppImage ./${{ matrix.asset_name }}
         shell: bash
 
-      - name: Rename Artifact (macOS / Windows)
-        if: runner.os != 'Linux'
+      - name: Package macOS App Bundle and DMG
+        if: startsWith(runner.os, 'macOS')
+        run: |
+          APP_NAME="BookletMaker"
+          APP_DIR="${APP_NAME}.app"
+          CONTENTS_DIR="${APP_DIR}/Contents"
+          MACOS_DIR="${CONTENTS_DIR}/MacOS"
+          RESOURCES_DIR="${CONTENTS_DIR}/Resources"
+          
+          mkdir -p "${MACOS_DIR}"
+          mkdir -p "${RESOURCES_DIR}"
+          
+          cp target/${{ matrix.target }}/release/booklet-maker "${MACOS_DIR}/${APP_NAME}"
+          
+          cat <<EOF > "${CONTENTS_DIR}/Info.plist"
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+              <key>CFBundleExecutable</key>
+              <string>${APP_NAME}</string>
+              <key>CFBundleIdentifier</key>
+              <string>com.moohaad.bookletmaker</string>
+              <key>CFBundleName</key>
+              <string>Booklet Maker</string>
+              <key>CFBundlePackageType</key>
+              <string>APPL</string>
+              <key>CFBundleShortVersionString</key>
+              <string>1.0</string>
+              <key>LSMinimumSystemVersion</key>
+              <string>10.13</string>
+              <key>NSHighResolutionCapable</key>
+              <true/>
+          </dict>
+          </plist>
+          EOF
+          
+          hdiutil create -volname "Booklet Maker" -srcfolder "${APP_DIR}" -ov -format UDZO ./${{ matrix.asset_name }}
+        shell: bash
+
+      - name: Rename Artifact (Windows)
+        if: runner.os == 'Windows'
         run: |
           mv target/${{ matrix.target }}/release/${{ matrix.artifact_name }} ./${{ matrix.asset_name }}
         shell: bash
