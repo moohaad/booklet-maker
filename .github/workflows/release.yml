@@ -117,6 +117,9 @@ jobs:
           </plist>
           EOF
           
+          chmod +x "${MACOS_DIR}/${APP_NAME}"
+          codesign --force --deep -s - "${APP_DIR}"
+          
           hdiutil create -volname "Booklet Maker" -srcfolder "${APP_DIR}" -ov -format UDZO ./${{ matrix.asset_name }}
         shell: bash
 
