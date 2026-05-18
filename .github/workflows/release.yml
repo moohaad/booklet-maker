@@ -16,7 +16,7 @@ jobs:
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
             artifact_name: booklet-maker
-            asset_name: booklet-maker-linux-x86_64
+            asset_name: booklet-maker-linux-x86_64.AppImage
           - os: windows-latest
             target: x86_64-pc-windows-msvc
             artifact_name: booklet-maker.exe
@@ -52,7 +52,33 @@ jobs:
       - name: Build Release
         run: cargo build --release --target ${{ matrix.target }}
 
-      - name: Rename Artifact
+      - name: Package AppImage (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          wget -q https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage
+          chmod +x linuxdeploy-x86_64.AppImage
+          
+          mkdir -p AppDir/usr/bin AppDir/usr/share/applications AppDir/usr/share/icons/hicolor/256x256/apps
+          cp target/${{ matrix.target }}/release/booklet-maker AppDir/usr/bin/
+          
+          cat <<EOF > AppDir/usr/share/applications/booklet-maker.desktop
+          [Desktop Entry]
+          Name=Booklet Maker
+          Exec=booklet-maker
+          Icon=booklet-maker
+          Type=Application
+          Categories=Utility;
+          EOF
+          
+          echo '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="40" fill="blue" /></svg>' > AppDir/usr/share/icons/hicolor/256x256/apps/booklet-maker.svg
+          
+          export APPIMAGE_EXTRACT_AND_RUN=1
+          ./linuxdeploy-x86_64.AppImage --appdir AppDir --output appimage
+          mv Booklet_Maker-*.AppImage ./${{ matrix.asset_name }}
+        shell: bash
+
+      - name: Rename Artifact (macOS / Windows)
+        if: runner.os != 'Linux'
         run: |
           mv target/${{ matrix.target }}/release/${{ matrix.artifact_name }} ./${{ matrix.asset_name }}
         shell: bash
@@ -62,30 +88,3 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/')
         with:
           files: ./${{ matrix.asset_name }}
-
-  flatpak:
-    name: Build Flatpak
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install dependencies for flatpak-cargo-generator
-        run: sudo apt-get update && sudo apt-get install -y python3 python3-aiohttp python3-toml
-
-      - name: Generate Cargo sources
-        run: |
-          curl -O https://raw.githubusercontent.com/flatpak/flatpak-builder-tools/master/cargo/flatpak-cargo-generator.py
-          python3 flatpak-cargo-generator.py Cargo.lock -o cargo-sources.json
-
-      - name: Build Flatpak
-        uses: flatpak/flatpak-github-actions/flatpak-builder@v6
-        with:
-          bundle: booklet-maker.flatpak
-          manifest-path: com.moohaad.BookletMaker.yml
-          cache-key: flatpak-builder-${{ github.sha }}
-
-      - name: Upload Release Asset
-        uses: softprops/action-gh-release@v2
-        if: startsWith(github.ref, 'refs/tags/')
-        with:
-          files: booklet-maker.flatpak
