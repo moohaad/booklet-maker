@@ -1,0 +1,111 @@
+import { Button, CheckBox, LineEdit, SpinBox, VerticalBox, HorizontalBox, GroupBox, ComboBox } from "std-widgets.slint";
+
+export component AppWindow inherits Window {
+    title: "Booklet Maker";
+    preferred-width: 500px;
+    preferred-height: 400px;
+    
+    in property <string> input-file: "";
+    in property <string> first-page-size: "";
+    in property <string> status-message: "Ready";
+    
+    callback select-file();
+    callback generate(string, bool, bool, bool, bool, string);
+
+    VerticalBox {
+        padding: 16px;
+        spacing: 12px;
+        
+        HorizontalBox {
+            alignment: start;
+            spacing: 8px;
+            Button {
+                text: "Select Input PDF";
+                clicked => { root.select-file(); }
+            }
+            VerticalBox {
+                alignment: center;
+                Text {
+                    text: root.input-file != "" ? root.input-file : "No file selected";
+                    overflow: elide;
+                }
+                Text {
+                    text: root.first-page-size != "" ? "Input Size: " + root.first-page-size : "";
+                    visible: root.first-page-size != "";
+                    font-size: 11px;
+                    color: gray;
+                }
+            }
+        }
+        
+        GroupBox {
+            title: "Options";
+            VerticalBox {
+                spacing: 8px;
+                
+                HorizontalBox {
+                    Text {
+                        text: "Pages per booklet:";
+                        vertical-alignment: center;
+                    }
+                    pages_input := ComboBox {
+                        model: ["All in one", "4", "8", "12", "16", "20", "24", "28", "32", "36", "40", "44", "48", "52", "56", "60", "64"];
+                        current-index: 0;
+                    }
+                }
+
+                HorizontalBox {
+                    Text {
+                        text: "Output Mode / Paper Size:";
+                        vertical-alignment: center;
+                    }
+                    output_mode_cb := ComboBox {
+                        model: ["Reorder Only (Original Size)", "Impose 2-up on A4 Landscape", "Impose 2-up on A3 Landscape", "Impose 2-up on Letter Landscape"];
+                        current-index: 0;
+                    }
+                }
+                
+                separate_files_cb := CheckBox {
+                    text: "Each booklet in a separate file";
+                    checked: false;
+                }
+                
+                last_page_back_cb := CheckBox {
+                    text: "Put last page on back cover";
+                    checked: false;
+                }
+                
+                flip_backs_cb := CheckBox {
+                    text: "Flip backs upside down for duplex printers";
+                    checked: false;
+                }
+                
+                rtl_cb := CheckBox {
+                    text: "Document is Right-to-Left (e.g. Arabic)";
+                    checked: false;
+                }
+            }
+        }
+        
+        Button {
+            text: "Generate Booklet(s)";
+            enabled: root.input-file != "";
+            clicked => {
+                root.generate(
+                    pages_input.current-value,
+                    separate_files_cb.checked,
+                    last_page_back_cb.checked,
+                    flip_backs_cb.checked,
+                    rtl_cb.checked,
+                    output_mode_cb.current-value
+                );
+            }
+        }
+        
+        Text {
+            text: root.status-message;
+            horizontal-alignment: center;
+            color: #444;
+        }
+    }
+}
